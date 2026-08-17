@@ -32,23 +32,42 @@ export default function AICoachModal({
   status,
   initialQuestion
 }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: `안녕하세요! 닥터 베베 AI 육아 코치입니다. 🩺\n\n현재 **${profile?.name || "우리 아기"}** (${status?.displayAge || "월령 정보"})의 발달 단계와 신체 리듬에 맞추어 전문적인 소아과 상담을 도와드릴게요.\n\n갑작스러운 아기 행동이나 건강 고민, 수유/수면 궁금증을 편하게 질문해주세요!`
-    }
-  ]);
+  const getInitialGreeting = () => ({
+    role: "assistant",
+    content: `안녕하세요! 닥터 베베 AI 육아 코치입니다. 🩺\n\n현재 **${profile?.name || "우리 아기"}** (${status?.isPregnant ? status?.gestationalText || "임신 주차" : status?.displayAge || "월령 정보"})의 상태에 맞추어 전문적인 소아과 & 임신 육아 상담을 도와드릴게요.\n\n궁금한 아기 행동이나 건강 고민, 입덧/수유/수면 질문을 편하게 남겨주세요!`
+  });
+
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [customKey, setCustomKey] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // 로컬스토리지에서 커스텀 키 로드
+  // 로컬스토리지에서 이전 대화 및 API 키 로드
   useEffect(() => {
-    const saved = localStorage.getItem("datebaby_gemini_key");
-    if (saved) setCustomKey(saved);
-  }, []);
+    const savedKey = localStorage.getItem("datebaby_gemini_key");
+    if (savedKey) setCustomKey(savedKey);
+
+    const savedChat = localStorage.getItem("datebaby_chat_history");
+    if (savedChat) {
+      try {
+        const parsed = JSON.parse(savedChat);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          return;
+        }
+      } catch (e) {}
+    }
+    // 저장된 대화가 없으면 환영 메시지로 초기화
+    setMessages([getInitialGreeting()]);
+  }, [profile?.name, status?.gestationalText, status?.displayAge]);
+
+  // 대화 변경 시 로컬스토리지 자동 저장
+  const updateMessages = (newMsgs) => {
+    setMessages(newMsgs);
+    localStorage.setItem("datebaby_chat_history", JSON.stringify(newMsgs));
+  };
 
   // initialQuestion이 들어왔을 때 자동 전송 또는 입력창 채우기
   useEffect(() => {
@@ -74,7 +93,7 @@ export default function AICoachModal({
 
     const userMsg = { role: "user", content: query };
     const newHistory = [...messages, userMsg];
-    setMessages(newHistory);
+    updateMessages(newHistory);
     setInput("");
     setLoading(true);
 
@@ -86,7 +105,7 @@ export default function AICoachModal({
           message: query,
           babyContext: {
             name: profile.name,
-            ageText: status.displayAge,
+            ageText: status.isPregnant ? status.gestationalText : status.displayAge,
             days: status.daysSinceBirth,
             isPregnant: status.isPregnant,
             weight: profile.weight
@@ -102,30 +121,28 @@ export default function AICoachModal({
         throw new Error(data.error || "답변을 가져오지 못했습니다.");
       }
 
-      setMessages((prev) => [
-        ...prev,
+      const updatedWithAnswer = [
+        ...newHistory,
         { role: "assistant", content: data.answer }
-      ]);
+      ];
+      updateMessages(updatedWithAnswer);
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
+      const updatedWithError = [
+        ...newHistory,
         {
           role: "assistant",
           content: `⚠️ 오류가 발생했습니다: ${err.message}\n\nGoogle AI Studio API 키를 등록하시려면 상단의 🔑 키 아이콘을 눌러 직접 입력해주세요.`
         }
-      ]);
+      ];
+      updateMessages(updatedWithError);
     } finally {
       setLoading(false);
     }
   };
 
   const handleClearChat = () => {
-    setMessages([
-      {
-        role: "assistant",
-        content: `대화가 초기화되었습니다. ${profile?.name}에 대해 궁금한 점을 언제든 물어보세요!`
-      }
-    ]);
+    const reset = [getInitialGreeting()];
+    updateMessages(reset);
   };
 
   return (
