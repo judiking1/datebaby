@@ -34,8 +34,8 @@ export async function askGeminiBabyCoach({
 
   const systemInstruction = `${GEMINI_SYSTEM_PROMPT}\n\n${contextHeader}`;
 
-  // REST API Endpoint (Gemini 2.0 Flash 또는 1.5 Flash)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${finalApiKey}`;
+  // REST API Endpoint (Gemini 3.6 Flash 또는 최신 모델)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${finalApiKey}`;
 
   const contents = [];
 
@@ -76,8 +76,8 @@ export async function askGeminiBabyCoach({
 
   if (!response.ok) {
     const errText = await response.text();
-    // 2.0 Flash 실패 시 1.5 Flash로 fallback
-    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${finalApiKey}`;
+    // 3.6 Flash 실패 시 gemini-2.5-flash로 fallback
+    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${finalApiKey}`;
     const fbResponse = await fetch(fallbackUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

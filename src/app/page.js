@@ -37,8 +37,34 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
-  // Load from LocalStorage
+  // Load from LocalStorage or URL params (for spouse sync)
   useEffect(() => {
+    // 1. URL 파라미터가 있는 경우 우선 반영 (와이프 공유 링크)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlName = params.get("name");
+      const urlMode = params.get("mode");
+      const urlDate = params.get("date");
+      const urlWeight = params.get("weight");
+
+      if (urlName && urlDate) {
+        const isPreg = urlMode === "pregnant";
+        const syncedProfile = {
+          name: urlName,
+          isPregnant: isPreg,
+          gender: "unknown",
+          birthDate: !isPreg ? urlDate : urlDate,
+          dueDate: isPreg ? urlDate : urlDate,
+          weight: parseFloat(urlWeight) || 7.0
+        };
+        setProfile(syncedProfile);
+        localStorage.setItem("datebaby_profile", JSON.stringify(syncedProfile));
+        setIsLoaded(true);
+        return;
+      }
+    } catch (e) {}
+
+    // 2. 일반 로컬스토리지 로드
     const saved = localStorage.getItem("datebaby_profile");
     if (saved) {
       try {

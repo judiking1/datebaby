@@ -169,6 +169,24 @@ export default function ProfileModal({
             <Save className="w-4 h-4" />
             저장하고 적용하기
           </button>
+
+          {/* Share with Spouse (URL Copy) */}
+          <button
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("name", name.trim() || "우리 아기");
+              url.searchParams.set("mode", isPregnant ? "pregnant" : "born");
+              url.searchParams.set("date", date);
+              url.searchParams.set("weight", weight);
+              navigator.clipboard.writeText(url.toString());
+              alert("💌 와이프/남편 공유 링크가 복사되었습니다!\n\n카카오톡으로 이 링크를 보내면 상대방 폰에서도 클릭 한 번으로 똑같이 자동 세팅됩니다.");
+            }}
+            className="w-full py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 border border-slate-300 shadow-2xs active:scale-95 transition-all"
+          >
+            <span>🔗</span>
+            와이프/가족에게 프로필 공유 링크 복사
+          </button>
         </form>
       </div>
     </div>
