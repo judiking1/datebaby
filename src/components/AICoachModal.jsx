@@ -10,8 +10,11 @@ import {
   Key,
   Trash2,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Stethoscope
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export const QUICK_PROMPTS = [
   "밤에 30분~1시간마다 깨서 울어요. 수면퇴행인가요?",
@@ -32,7 +35,7 @@ export default function AICoachModal({
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: `안녕하세요! 닥터 베베 AI 코치입니다. 🩺\n\n현재 **${profile?.name || "우리 아기"}** (${status?.displayAge || "월령 정보"})의 발달 상태를 바탕으로 맞춤 상담을 도와드릴게요.\n\n갑작스러운 아기 행동이나 건강 고민, 수유/수면 궁금증을 편하게 질문해주세요!`
+      content: `안녕하세요! 닥터 베베 AI 육아 코치입니다. 🩺\n\n현재 **${profile?.name || "우리 아기"}** (${status?.displayAge || "월령 정보"})의 발달 단계와 신체 리듬에 맞추어 전문적인 소아과 상담을 도와드릴게요.\n\n갑작스러운 아기 행동이나 건강 고민, 수유/수면 궁금증을 편하게 질문해주세요!`
     }
   ]);
   const [input, setInput] = useState("");
@@ -127,18 +130,18 @@ export default function AICoachModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md h-[90vh] sm:h-[680px] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+      <div className="bg-white w-full max-w-md h-[92vh] sm:h-[720px] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
         {/* Modal Header */}
         <div className="p-4 bg-linear-to-r from-violet-600 to-indigo-600 text-white flex items-center justify-between shrink-0 shadow-xs">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-white/20 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+              <Stethoscope className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="font-bold text-sm">닥터 베베 AI 육아 코치</h3>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-white/25 text-white font-medium">
-                  Gemini 2.0
+                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-white/25 text-white font-semibold">
+                  Gemini 3.6 Pro
                 </span>
               </div>
               <p className="text-[11px] text-violet-200 font-medium">
@@ -209,7 +212,7 @@ export default function AICoachModal({
         )}
 
         {/* Chat Messages Area */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50">
+        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50">
           {messages.map((msg, index) => {
             const isUser = msg.role === "user";
             return (
@@ -220,18 +223,54 @@ export default function AICoachModal({
                 }`}
               >
                 {!isUser && (
-                  <div className="w-8 h-8 rounded-full bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 text-xs font-bold shadow-2xs">
                     👨‍⚕️
                   </div>
                 )}
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed whitespace-pre-line shadow-2xs ${
+                  className={`max-w-[88%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-2xs ${
                     isUser
                       ? "bg-violet-600 text-white rounded-br-xs font-medium"
-                      : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90 font-normal"
+                      : "bg-white text-slate-800 rounded-bl-xs border border-slate-200/90"
                   }`}
                 >
-                  {msg.content}
+                  {isUser ? (
+                    <p className="whitespace-pre-line">{msg.content}</p>
+                  ) : (
+                    <div className="space-y-2 prose prose-xs prose-slate max-w-none">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h3: ({ node, ...props }) => (
+                            <h4 className="font-bold text-violet-900 text-xs sm:text-sm mt-3 mb-1 flex items-center gap-1 border-b border-violet-100 pb-1" {...props} />
+                          ),
+                          h4: ({ node, ...props }) => (
+                            <h5 className="font-bold text-slate-800 text-xs mt-2 mb-0.5" {...props} />
+                          ),
+                          ul: ({ node, ...props }) => (
+                            <ul className="list-disc pl-4 space-y-1 my-1 text-slate-700" {...props} />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <ol className="list-decimal pl-4 space-y-1 my-1 text-slate-700 font-medium" {...props} />
+                          ),
+                          li: ({ node, ...props }) => (
+                            <li className="leading-relaxed" {...props} />
+                          ),
+                          strong: ({ node, ...props }) => (
+                            <strong className="font-bold text-violet-950 bg-violet-50/80 px-1 py-0.2 rounded" {...props} />
+                          ),
+                          p: ({ node, ...props }) => (
+                            <p className="my-1.5 leading-relaxed text-slate-700" {...props} />
+                          ),
+                          blockquote: ({ node, ...props }) => (
+                            <blockquote className="border-l-4 border-violet-400 pl-3 py-1 my-2 text-violet-900 bg-violet-50/50 rounded-r-lg italic" {...props} />
+                          )
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
                 {isUser && (
                   <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 shrink-0 text-xs">
