@@ -34,9 +34,6 @@ export async function askGeminiBabyCoach({
 
   const systemInstruction = `${GEMINI_SYSTEM_PROMPT}\n\n${contextHeader}`;
 
-  // REST API Endpoint (Gemini 3.6 Flash)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${finalApiKey}`;
-
   const contents = [];
 
   // 이전 대화 기록 포맷 변환
@@ -66,33 +63,43 @@ export async function askGeminiBabyCoach({
     }
   };
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  // 지원 모델 우선순위 체인 (20RPD 소진 시 500RPD 모델로 자동 연속 전환)
+  const CANDIDATE_MODELS = [
+    "gemini-3.6-flash",       // 1순위: 최신 플래그십 (20 RPD)
+    "gemini-3.5-flash-lite",  // 2순위: 초고속 500 RPD (하루 500개 요청 무료!)
+    "gemini-3.1-flash-lite",  // 3순위: 안정적인 500 RPD (하루 500개 요청 무료!)
+    "gemini-3.5-flash",       // 4순위: 3.5 Flash (20 RPD)
+    "gemini-2.5-flash"        // 5순위: 2.5 Flash 백업
+  ];
 
-  if (!response.ok) {
-    const errText = await response.text();
-    // 3.6 Flash 실패 시 gemini-2.5-flash로 fallback
-    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${finalApiKey}`;
-    const fbResponse = await fetch(fallbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+  let lastError = null;
 
-    if (!fbResponse.ok) {
-      const fbErr = await fbResponse.text();
-      throw new Error(`Gemini API 오류 (${response.status}): ${fbErr}`);
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${finalApiKey}`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return text;
+        }
+      } else {
+        const errBody = await response.text();
+        console.warn(`[Gemini Fallback] ${modelName} 호출 실패 (${response.status}): ${errBody}. 다음 모델로 전환합니다.`);
+        lastError = new Error(`Model ${modelName} failed (${response.status}): ${errBody}`);
+      }
+    } catch (fetchErr) {
+      console.warn(`[Gemini Fallback] ${modelName} 네트워크 오류:`, fetchErr);
+      lastError = fetchErr;
     }
-
-    const data = await fbResponse.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
   }
 
-  const data = await response.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
+  throw new Error(`모든 AI 모델의 일일 사용량이 소진되었거나 오류가 발생했습니다. (${lastError?.message})`);
 }
