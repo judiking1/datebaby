@@ -21,6 +21,19 @@ export const MILESTONE_JUMPS = [
   { label: "세 돌 (36개월)", days: 1095 }
 ];
 
+export const PREGNANCY_JUMPS = [
+  { label: "4주 (착상)", week: 4 },
+  { label: "7주 (입덧 절정)", week: 7 },
+  { label: "12주 (1차 기형아)", week: 12 },
+  { label: "16주 (성별/태동)", week: 16 },
+  { label: "20주 (정밀 초음파)", week: 20 },
+  { label: "24주 (임당 검사)", week: 24 },
+  { label: "28주 (만삭 촬영)", week: 28 },
+  { label: "32주 (아기 빨래)", week: 32 },
+  { label: "36주 (막달 검사)", week: 36 },
+  { label: "40주 (출산 D-Day)", week: 40 }
+];
+
 export default function BabyDateHero({
   profile,
   status,
@@ -43,19 +56,22 @@ export default function BabyDateHero({
     onDateChange(next);
   };
 
+  const handleJumpPregnancyWeek = (targetWeek) => {
+    const due = new Date(profile.dueDate || new Date(Date.now() + 120 * 86400000));
+    due.setHours(0, 0, 0, 0);
+    // 임신 40주(280일) 기준, targetWeek에 해당하는 날짜 = dueDate - (40 - targetWeek) * 7일
+    const daysBeforeDue = (40 - targetWeek) * 7;
+    const targetDate = new Date(due);
+    targetDate.setDate(targetDate.getDate() - daysBeforeDue);
+    onDateChange(targetDate);
+  };
+
   const handleJumpDays = (days) => {
-    if (profile.isPregnant) {
-      // 임신 모드는 주차별 이동
-      const base = new Date();
-      base.setDate(base.getDate() + days);
-      onDateChange(base);
-    } else {
-      const birth = new Date(profile.birthDate || new Date());
-      birth.setHours(0, 0, 0, 0);
-      const target = new Date(birth);
-      target.setDate(target.getDate() + days);
-      onDateChange(target);
-    }
+    const birth = new Date(profile.birthDate || new Date());
+    birth.setHours(0, 0, 0, 0);
+    const target = new Date(birth);
+    target.setDate(target.getDate() + days);
+    onDateChange(target);
   };
 
   return (
@@ -147,6 +163,32 @@ export default function BabyDateHero({
             </div>
           )}
         </div>
+
+        {/* Quick Jump Chips (임신 모드) */}
+        {profile.isPregnant && (
+          <div className="mt-3 overflow-x-auto scrollbar-none flex items-center gap-1.5 pb-1">
+            <span className="text-[11px] font-bold text-amber-700 shrink-0 flex items-center gap-1">
+              <Clock className="w-3 h-3 text-amber-500" />
+              주차별 탐색:
+            </span>
+            {PREGNANCY_JUMPS.map((p) => {
+              const isSelected = status.gestationalWeeks === p.week;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => handleJumpPregnancyWeek(p.week)}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold active:scale-95 transition-all shadow-2xs ${
+                    isSelected
+                      ? "bg-amber-500 text-white border border-amber-600 font-bold"
+                      : "bg-white hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200/80"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Quick Jump Chips (출산 후 모드) */}
         {!profile.isPregnant && (
