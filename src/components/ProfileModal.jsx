@@ -19,6 +19,7 @@ export default function ProfileModal({
       : profile?.birthDate || formatISODate(new Date(Date.now() - 90 * 86400000))
   );
   const [weight, setWeight] = useState(profile?.weight ? String(profile.weight) : "7.2");
+  const [familyCode, setFamilyCode] = useState(profile?.familyCode || "");
 
   useEffect(() => {
     if (profile) {
@@ -31,6 +32,7 @@ export default function ProfileModal({
           : profile.birthDate || formatISODate(new Date())
       );
       setWeight(profile.weight ? String(profile.weight) : "7.2");
+      setFamilyCode(profile.familyCode || "");
     }
   }, [profile, isOpen]);
 
@@ -44,7 +46,8 @@ export default function ProfileModal({
       gender,
       dueDate: isPregnant ? date : profile?.dueDate || date,
       birthDate: !isPregnant ? date : profile?.birthDate || date,
-      weight: parseFloat(weight) || 7.0
+      weight: parseFloat(weight) || 7.0,
+      familyCode: familyCode.trim().toLowerCase()
     };
     onSaveProfile(newProfile);
     onClose();
@@ -161,6 +164,38 @@ export default function ProfileModal({
             </div>
           )}
 
+          {/* Family Code (Firebase Realtime Cloud Sync) */}
+          <div className="bg-white p-4 rounded-2xl border border-purple-200/80 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                <span>🔥</span>
+                부부 실시간 동기화 가족 코드 (Firebase)
+              </label>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-tight">
+              부부가 동일한 가족 코드를 입력해두면, 한쪽에서 수정한 몸무게와 마일스톤이 상대방 폰에 실시간으로 자동 동기화됩니다.
+            </p>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={familyCode}
+                onChange={(e) => setFamilyCode(e.target.value)}
+                placeholder="예: dani2026"
+                className="flex-1 px-3.5 py-2 bg-slate-50 border border-purple-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const randomCode = "baby-" + Math.random().toString(36).substring(2, 6);
+                  setFamilyCode(randomCode);
+                }}
+                className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-xs rounded-xl active:scale-95 transition-all"
+              >
+                🎲 랜덤 코드
+              </button>
+            </div>
+          </div>
+
           {/* Save Button */}
           <button
             type="submit"
@@ -170,7 +205,7 @@ export default function ProfileModal({
             저장하고 적용하기
           </button>
 
-          {/* Share with Spouse (URL Copy) */}
+          {/* Share with Spouse (URL Copy with Family Code) */}
           <button
             type="button"
             onClick={() => {
@@ -179,8 +214,9 @@ export default function ProfileModal({
               url.searchParams.set("mode", isPregnant ? "pregnant" : "born");
               url.searchParams.set("date", date);
               url.searchParams.set("weight", weight);
+              if (familyCode) url.searchParams.set("family", familyCode.trim());
               navigator.clipboard.writeText(url.toString());
-              alert("💌 와이프/남편 공유 링크가 복사되었습니다!\n\n카카오톡으로 이 링크를 보내면 상대방 폰에서도 클릭 한 번으로 똑같이 자동 세팅됩니다.");
+              alert("💌 와이프/남편 공유 링크가 복사되었습니다!\n\n카카오톡으로 이 링크를 보내면 상대방 폰에서도 클릭 한 번으로 똑같이 자동 세팅 및 실시간 연동됩니다.");
             }}
             className="w-full py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 border border-slate-300 shadow-2xs active:scale-95 transition-all"
           >

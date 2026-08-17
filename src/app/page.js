@@ -12,7 +12,8 @@ import ProfileModal from "@/components/ProfileModal";
 import PwaPrompt from "@/components/PwaPrompt";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
-import { BookOpen, Zap, Award, Bot, HeartPulse } from "lucide-react";
+import { syncFamilyToCloud, listenToFamilyCloud } from "@/lib/firebase";
+import { BookOpen, Zap, Award, Bot, HeartPulse, CloudCheck } from "lucide-react";
 
 // 기본 아기 프로필 (첫 방문 시 기본값)
 const DEFAULT_PROFILE = {
@@ -21,7 +22,8 @@ const DEFAULT_PROFILE = {
   gender: "girl",
   birthDate: "2026-05-20", // 생후 약 90일(3개월) 전후 기준
   dueDate: "2026-05-20",
-  weight: 6.8
+  weight: 6.8,
+  familyCode: "dani2026"
 };
 
 export default function Home() {
@@ -46,6 +48,7 @@ export default function Home() {
       const urlMode = params.get("mode");
       const urlDate = params.get("date");
       const urlWeight = params.get("weight");
+      const urlFamily = params.get("family");
 
       if (urlName && urlDate) {
         const isPreg = urlMode === "pregnant";
@@ -55,7 +58,8 @@ export default function Home() {
           gender: "unknown",
           birthDate: !isPreg ? urlDate : urlDate,
           dueDate: isPreg ? urlDate : urlDate,
-          weight: parseFloat(urlWeight) || 7.0
+          weight: parseFloat(urlWeight) || 7.0,
+          familyCode: urlFamily || "dani2026"
         };
         setProfile(syncedProfile);
         localStorage.setItem("datebaby_profile", JSON.stringify(syncedProfile));
@@ -74,9 +78,33 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
+  // 3. Firebase 실시간 클라우드 리스너 (부부 간 실시간 동기화)
+  useEffect(() => {
+    if (!profile?.familyCode) return;
+
+    const unsubscribe = listenToFamilyCloud(profile.familyCode, (cloudData) => {
+      if (cloudData?.profile) {
+        setProfile((prev) => ({
+          ...prev,
+          ...cloudData.profile
+        }));
+        localStorage.setItem(
+          "datebaby_profile",
+          JSON.stringify({ ...profile, ...cloudData.profile })
+        );
+      }
+    });
+
+    return () => unsubscribe();
+  }, [profile?.familyCode]);
+
   const handleSaveProfile = (newProfile) => {
     setProfile(newProfile);
     localStorage.setItem("datebaby_profile", JSON.stringify(newProfile));
+    // Firebase Cloud 동기화 전송
+    if (newProfile.familyCode) {
+      syncFamilyToCloud(newProfile.familyCode, { profile: newProfile });
+    }
   };
 
   const handleAskAI = (question) => {

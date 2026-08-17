@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, Circle, Award, Sparkles, Heart } from "lucide-react";
+import { syncFamilyToCloud, listenToFamilyCloud } from "@/lib/firebase";
 import confetti from "canvas-confetti";
 
 export const MILESTONES = [
@@ -33,10 +34,31 @@ export default function MilestoneTracker({ profile }) {
     }
   }, []);
 
+  // Firebase 실시간 마일스톤 리스너
+  useEffect(() => {
+    if (!profile?.familyCode) return;
+
+    const unsubscribe = listenToFamilyCloud(profile.familyCode, (cloudData) => {
+      if (cloudData?.milestones) {
+        setCompleted(cloudData.milestones);
+        localStorage.setItem(
+          "datebaby_milestones",
+          JSON.stringify(cloudData.milestones)
+        );
+      }
+    });
+
+    return () => unsubscribe();
+  }, [profile?.familyCode]);
+
   const toggleMilestone = (id) => {
     const updated = { ...completed, [id]: !completed[id] };
     setCompleted(updated);
     localStorage.setItem("datebaby_milestones", JSON.stringify(updated));
+
+    if (profile?.familyCode) {
+      syncFamilyToCloud(profile.familyCode, { milestones: updated });
+    }
 
     if (!completed[id]) {
       // Confetti burst when checked!
