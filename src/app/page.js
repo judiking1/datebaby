@@ -18,7 +18,12 @@ import WhiteNoisePlayer from "@/components/WhiteNoisePlayer";
 import KakaoInAppHandler from "@/components/KakaoInAppHandler";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
-import { syncFamilyToCloud, listenToFamilyCloud, getFirebaseAuth } from "@/lib/firebase";
+import {
+  syncFamilyToCloud,
+  listenToFamilyCloud,
+  getFirebaseAuth,
+  getUserProfile
+} from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   BookOpen,
@@ -60,18 +65,52 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
-  // Prevent Hydration mismatch & Handle OAuth popup window close
+  // 1. Handle OAuth Popup Callback (Naver & Kakao)
   useEffect(() => {
     setIsLoaded(true);
 
-    if (typeof window !== "undefined" && window.opener) {
-      try {
-        window.close();
-      } catch (e) {}
+    if (typeof window !== "undefined") {
+      // 팝업 창 안에서 콜백이 실행된 경우 부모 창에 메시지 전달 후 닫기
+      if (window.opener) {
+        try {
+          const hash = window.location.hash;
+          const search = window.location.search;
+
+          // 네이버 액세스 토큰 감지
+          if (hash.includes("access_token=")) {
+            const params = new URLSearchParams(hash.replace("#", "?"));
+            const token = params.get("access_token");
+            if (token) {
+              window.opener.postMessage(
+                { type: "NAVER_TOKEN", accessToken: token },
+                window.location.origin
+              );
+              window.close();
+              return;
+            }
+          }
+
+          // 카카오 인가 코드 감지
+          if (search.includes("code=")) {
+            const params = new URLSearchParams(search);
+            const code = params.get("code");
+            if (code) {
+              window.opener.postMessage(
+                { type: "KAKAO_CODE", code: code },
+                window.location.origin
+              );
+              window.close();
+              return;
+            }
+          }
+
+          window.close();
+        } catch (e) {}
+      }
     }
   }, []);
 
-  // Firebase Auth state listener & LocalStorage user restoration
+  // 2. Firebase Auth state listener & LocalStorage user restoration
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("datebaby_user");
@@ -100,7 +139,7 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  // Load from LocalStorage or URL params (1-click invite link)
+  // 3. Load from LocalStorage or URL params (1-click invite link)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -139,7 +178,7 @@ export default function Home() {
     }
   }, []);
 
-  // Firebase 실시간 클라우드 리스너
+  // 4. Firebase 실시간 클라우드 리스너
   useEffect(() => {
     if (!profile?.familyCode) return;
 
@@ -178,6 +217,26 @@ export default function Home() {
   const handleAskAI = (question) => {
     setChatQuestion(question);
     setIsChatOpen(true);
+  };
+
+  const handleAuthSuccess = async (user) => {
+    setCurrentUser(user);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("datebaby_user", JSON.stringify(user));
+    }
+    setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
+    setTimeout(() => setSyncToast(""), 4000);
+
+    // 사용자의 기존 등록 아기 코드가 있으면 자동 동기화
+    if (user?.uid) {
+      const uProfile = await getUserProfile(user.uid);
+      if (uProfile?.familyCode) {
+        setProfile((prev) => ({
+          ...prev,
+          familyCode: uProfile.familyCode
+        }));
+      }
+    }
   };
 
   const status = calculateBabyStatus(profile, currentDate);
@@ -462,12 +521,7 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
-        onAuthSuccess={(user) => {
-          setCurrentUser(user);
-          localStorage.setItem("datebaby_user", JSON.stringify(user));
-          setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
-          setTimeout(() => setSyncToast(""), 4000);
-        }}
+        onAuthSuccess={handleAuthSuccess}
       />
 
       <AICoachModal
