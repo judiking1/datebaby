@@ -544,6 +544,12 @@ export default function Home() {
         profile={profile}
         onSaveProfile={handleSaveProfile}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={() => {
+          setCurrentUser(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("datebaby_user");
+          }
+        }}
       />
 
       <PwaPrompt isOpen={isPwaOpen} onClose={() => setIsPwaOpen(false)} />

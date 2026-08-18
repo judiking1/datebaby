@@ -34,7 +34,8 @@ export default function ProfileModal({
   onClose,
   profile,
   onSaveProfile,
-  onOpenAuth
+  onOpenAuth,
+  onLogout
 }) {
   const [isPregnant, setIsPregnant] = useState(profile?.isPregnant ?? false);
   const [name, setName] = useState(profile?.name || "우리 아기");
@@ -131,6 +132,10 @@ export default function ProfileModal({
     await logoutUser();
     setCurrentUser(null);
     setUserNickname("");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("datebaby_user");
+    }
+    if (onLogout) onLogout();
   };
 
   const handleSubmit = async (e) => {
