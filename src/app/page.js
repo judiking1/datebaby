@@ -60,6 +60,11 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
+  // Prevent Hydration mismatch
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
   // Firebase Auth state listener
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -73,6 +78,8 @@ export default function Home() {
 
   // Load from LocalStorage or URL params (1-click invite link)
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     try {
       const params = new URLSearchParams(window.location.search);
       const urlFamily = params.get("family");
@@ -96,7 +103,6 @@ export default function Home() {
         localStorage.setItem("datebaby_profile", JSON.stringify(syncedProfile));
         setSyncToast(`🎉 [${syncedProfile.name}] 가족 클라우드에 연결되었습니다!`);
         setTimeout(() => setSyncToast(""), 4000);
-        setIsLoaded(true);
         return;
       }
     } catch (e) {}
@@ -107,10 +113,9 @@ export default function Home() {
         setProfile(JSON.parse(saved));
       } catch (e) {}
     }
-    setIsLoaded(true);
   }, []);
 
-  // Firebase 실시간 클라우드 리스너 (배우자가 기록 시 즉시 반영)
+  // Firebase 실시간 클라우드 리스너
   useEffect(() => {
     if (!profile?.familyCode) return;
 
@@ -120,10 +125,6 @@ export default function Home() {
           ...prev,
           ...cloudData.profile
         }));
-        localStorage.setItem(
-          "datebaby_profile",
-          JSON.stringify({ ...profile, ...cloudData.profile })
-        );
       }
       if (cloudData?.dailyLogs) {
         localStorage.setItem(
@@ -161,6 +162,21 @@ export default function Home() {
   const todayStr = formatISODate(new Date());
   const currentStr = formatISODate(currentDate);
   const isToday = todayStr === currentStr;
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-14 h-14 rounded-3xl bg-amber-500/20 flex items-center justify-center animate-bounce">
+            <span className="text-3xl">🍼</span>
+          </div>
+          <span className="text-xs font-bold text-slate-500">
+            데이트베이비 로딩 중...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans pb-28 selection:bg-amber-200">
@@ -200,7 +216,7 @@ export default function Home() {
         isToday={isToday}
       />
 
-      {/* 3. Main Navigation Tab Bar (Scrollable chips) */}
+      {/* 3. Main Navigation Tab Bar */}
       <div className="max-w-md mx-auto w-full px-4 pt-3">
         <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex gap-1 overflow-x-auto scrollbar-none">
           <button
@@ -323,7 +339,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* 5. Floating AI Coach FAB (Bottom-Right) */}
+      {/* 5. Floating AI Coach FAB */}
       <div className="fixed bottom-20 right-4 sm:right-[max(1rem,calc(50%-220px))] z-40">
         <button
           onClick={() => {
