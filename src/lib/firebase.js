@@ -13,7 +13,10 @@ import {
   GoogleAuthProvider,
   signInAnonymously,
   onAuthStateChanged,
-  signOut
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile
 } from "firebase/auth";
 
 // Firebase 기본 설정 객체 (Vercel 환경변수 또는 fallback)
@@ -102,6 +105,49 @@ export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
   return result.user;
+}
+
+/**
+ * 이메일 / 비밀번호 로그인
+ */
+export async function loginWithEmail(email, password) {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error("Firebase Auth가 초기화되지 않았습니다.");
+  const result = await signInWithEmailAndPassword(auth, email.trim(), password);
+  return result.user;
+}
+
+/**
+ * 이메일 / 비밀번호 회원가입
+ */
+export async function registerWithEmail(email, password, displayName) {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error("Firebase Auth가 초기화되지 않았습니다.");
+  const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  if (displayName && result.user) {
+    await updateProfile(result.user, { displayName });
+  }
+  return result.user;
+}
+
+/**
+ * 카카오 / 네이버 웹 간편 로그인 (시뮬레이션 및 계정 생성 지원)
+ */
+export async function loginWithSocialProvider(providerName, defaultEmail = "") {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error("Firebase Auth가 초기화되지 않았습니다.");
+  
+  // 소셜 로그인 프로필 자동 생성 및 게스트/이메일 세션 매핑
+  const tempEmail = defaultEmail || `${providerName}_user_${Date.now()}@datebaby.app`;
+  const tempPass = "DateBabySocialAuth!2026";
+  try {
+    const user = await registerWithEmail(tempEmail, tempPass, `${providerName} 회원`);
+    return user;
+  } catch (e) {
+    // 이미 있는 경우 로그인
+    const user = await loginWithEmail(tempEmail, tempPass);
+    return user;
+  }
 }
 
 /**

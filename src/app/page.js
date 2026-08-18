@@ -12,12 +12,14 @@ import MilestoneTracker from "@/components/MilestoneTracker";
 import AICoachModal from "@/components/AICoachModal";
 import EmergencyModal from "@/components/EmergencyModal";
 import ProfileModal from "@/components/ProfileModal";
+import AuthModal from "@/components/AuthModal";
 import PwaPrompt from "@/components/PwaPrompt";
 import WhiteNoisePlayer from "@/components/WhiteNoisePlayer";
 import KakaoInAppHandler from "@/components/KakaoInAppHandler";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
-import { syncFamilyToCloud, listenToFamilyCloud } from "@/lib/firebase";
+import { syncFamilyToCloud, listenToFamilyCloud, getFirebaseAuth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   BookOpen,
   Zap,
@@ -47,14 +49,27 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("guide");
   const [isLoaded, setIsLoaded] = useState(false);
   const [syncToast, setSyncToast] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Modals
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
   const [isPwaOpen, setIsPwaOpen] = useState(false);
   const [isWhiteNoiseOpen, setIsWhiteNoiseOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
+
+  // Firebase Auth state listener
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    if (!auth) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load from LocalStorage or URL params (1-click invite link)
   useEffect(() => {
@@ -163,6 +178,8 @@ export default function Home() {
       {/* 1. Header */}
       <Header
         profile={profile}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
         onOpenPwa={() => setIsPwaOpen(true)}
@@ -402,6 +419,15 @@ export default function Home() {
       </nav>
 
       {/* 7. Modals */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onAuthSuccess={(user) => {
+          setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
+          setTimeout(() => setSyncToast(""), 4000);
+        }}
+      />
+
       <AICoachModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
@@ -421,6 +447,7 @@ export default function Home() {
         onClose={() => setIsProfileOpen(false)}
         profile={profile}
         onSaveProfile={handleSaveProfile}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       <PwaPrompt isOpen={isPwaOpen} onClose={() => setIsPwaOpen(false)} />

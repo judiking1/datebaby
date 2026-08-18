@@ -1,10 +1,22 @@
 "use client";
 
 import React from "react";
-import { Baby, Sparkles, HeartPulse, Settings, Download, Music, Cloud } from "lucide-react";
+import {
+  Baby,
+  Sparkles,
+  HeartPulse,
+  Settings,
+  Download,
+  Music,
+  Cloud,
+  User,
+  LogIn
+} from "lucide-react";
 
 export default function Header({
   profile,
+  currentUser,
+  onOpenAuth,
   onOpenProfile,
   onOpenEmergency,
   onOpenPwa,
@@ -12,7 +24,7 @@ export default function Header({
   onOpenChat
 }) {
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-amber-100 shadow-xs px-4 py-3">
+    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-amber-100 shadow-xs px-3 sm:px-4 py-2.5">
       <div className="max-w-md mx-auto flex items-center justify-between">
         {/* Logo & Baby Name */}
         <button
@@ -47,7 +59,38 @@ export default function Header({
         </button>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {/* Dedicated Login / User Button */}
+          {currentUser ? (
+            <button
+              onClick={onOpenProfile}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 transition-all active:scale-95"
+              title="내 계정 정보"
+            >
+              {currentUser.photoURL ? (
+                <img
+                  src={currentUser.photoURL}
+                  alt="avatar"
+                  className="w-5 h-5 rounded-full"
+                />
+              ) : (
+                <User className="w-3.5 h-3.5 text-slate-600" />
+              )}
+              <span className="max-w-[48px] truncate hidden sm:inline">
+                {currentUser.displayName?.split(" ")[0] || "내 계정"}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-xs transition-all active:scale-95"
+              title="로그인 / 회원가입"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>로그인</span>
+            </button>
+          )}
+
           {/* White Noise Player Button */}
           <button
             onClick={onOpenWhiteNoise}
@@ -60,20 +103,10 @@ export default function Header({
           {/* Emergency SOS Button */}
           <button
             onClick={onOpenEmergency}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-all active:scale-95 shadow-xs"
+            className="flex items-center gap-1 px-2 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-all active:scale-95 shadow-xs"
             title="소아 응급 SOS & 해열제 계산기"
           >
             <HeartPulse className="w-4 h-4 text-rose-600 animate-pulse" />
-            <span className="hidden sm:inline">응급 SOS</span>
-          </button>
-
-          {/* PWA Install Button */}
-          <button
-            onClick={onOpenPwa}
-            className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all active:scale-95 shadow-2xs"
-            title="홈 화면에 앱 설치하기"
-          >
-            <Download className="w-4 h-4" />
           </button>
 
           {/* Settings / Profile Button */}
