@@ -4,23 +4,37 @@ import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import BabyDateHero from "@/components/BabyDateHero";
 import DailyGuideSection from "@/components/DailyGuideSection";
+import DailyLogSection from "@/components/DailyLogSection";
+import GrowthCurveSection from "@/components/GrowthCurveSection";
+import VaccineSection from "@/components/VaccineSection";
 import WonderWeeksSection from "@/components/WonderWeeksSection";
 import MilestoneTracker from "@/components/MilestoneTracker";
 import AICoachModal from "@/components/AICoachModal";
 import EmergencyModal from "@/components/EmergencyModal";
 import ProfileModal from "@/components/ProfileModal";
 import PwaPrompt from "@/components/PwaPrompt";
+import WhiteNoisePlayer from "@/components/WhiteNoisePlayer";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
 import { syncFamilyToCloud, listenToFamilyCloud } from "@/lib/firebase";
-import { BookOpen, Zap, Award, Bot, HeartPulse, CloudCheck } from "lucide-react";
+import {
+  BookOpen,
+  Zap,
+  Award,
+  Bot,
+  HeartPulse,
+  Milk,
+  TrendingUp,
+  ShieldCheck,
+  Music
+} from "lucide-react";
 
-// 기본 아기 프로필 (첫 방문 시 기본값)
+// 기본 아기 프로필
 const DEFAULT_PROFILE = {
   isPregnant: false,
-  name: "단이",
+  name: "우리 아기",
   gender: "girl",
-  birthDate: "2026-05-20", // 생후 약 90일(3개월) 전후 기준
+  birthDate: "2026-05-20", // 기본 예시 생후 약 90일
   dueDate: "2026-05-20",
   weight: 6.8,
   familyCode: "dani2026"
@@ -29,19 +43,19 @@ const DEFAULT_PROFILE = {
 export default function Home() {
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState("guide"); // 'guide' | 'wonder' | 'milestones'
+  const [activeTab, setActiveTab] = useState("guide"); // 'guide' | 'log' | 'growth' | 'vaccine' | 'wonder' | 'milestones'
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
   const [isPwaOpen, setIsPwaOpen] = useState(false);
+  const [isWhiteNoiseOpen, setIsWhiteNoiseOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
   // Load from LocalStorage or URL params (for spouse sync)
   useEffect(() => {
-    // 1. URL 파라미터가 있는 경우 우선 반영 (와이프 공유 링크)
     try {
       const params = new URLSearchParams(window.location.search);
       const urlName = params.get("name");
@@ -55,10 +69,10 @@ export default function Home() {
         const syncedProfile = {
           name: urlName,
           isPregnant: isPreg,
-          gender: "unknown",
+          gender: "girl",
           birthDate: !isPreg ? urlDate : urlDate,
           dueDate: isPreg ? urlDate : urlDate,
-          weight: parseFloat(urlWeight) || 7.0,
+          weight: parseFloat(urlWeight) || 6.8,
           familyCode: urlFamily || "dani2026"
         };
         setProfile(syncedProfile);
@@ -68,7 +82,6 @@ export default function Home() {
       }
     } catch (e) {}
 
-    // 2. 일반 로컬스토리지 로드
     const saved = localStorage.getItem("datebaby_profile");
     if (saved) {
       try {
@@ -78,7 +91,7 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
-  // 3. Firebase 실시간 클라우드 리스너 (부부 간 실시간 동기화)
+  // Firebase 실시간 클라우드 리스너 (부부 간 실시간 동기화)
   useEffect(() => {
     if (!profile?.familyCode) return;
 
@@ -93,6 +106,18 @@ export default function Home() {
           JSON.stringify({ ...profile, ...cloudData.profile })
         );
       }
+      if (cloudData?.dailyLogs) {
+        localStorage.setItem(
+          "datebaby_daily_logs",
+          JSON.stringify(cloudData.dailyLogs)
+        );
+      }
+      if (cloudData?.completedVaccines) {
+        localStorage.setItem(
+          "datebaby_completed_vaccines",
+          JSON.stringify(cloudData.completedVaccines)
+        );
+      }
     });
 
     return () => unsubscribe();
@@ -101,7 +126,6 @@ export default function Home() {
   const handleSaveProfile = (newProfile) => {
     setProfile(newProfile);
     localStorage.setItem("datebaby_profile", JSON.stringify(newProfile));
-    // Firebase Cloud 동기화 전송
     if (newProfile.familyCode) {
       syncFamilyToCloud(newProfile.familyCode, { profile: newProfile });
     }
@@ -121,13 +145,14 @@ export default function Home() {
   const isToday = todayStr === currentStr;
 
   return (
-    <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans pb-24 selection:bg-amber-200">
+    <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans pb-28 selection:bg-amber-200">
       {/* 1. Header */}
       <Header
         profile={profile}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
         onOpenPwa={() => setIsPwaOpen(true)}
+        onOpenWhiteNoise={() => setIsWhiteNoiseOpen(true)}
         onOpenChat={() => {
           setChatQuestion("");
           setIsChatOpen(true);
@@ -144,25 +169,67 @@ export default function Home() {
         isToday={isToday}
       />
 
-      {/* 3. Main Navigation Tab Bar */}
+      {/* 3. Main Navigation Tab Bar (Scrollable chips) */}
       <div className="max-w-md mx-auto w-full px-4 pt-3">
-        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex gap-1">
+        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex gap-1 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab("guide")}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
               activeTab === "guide"
                 ? "bg-amber-500 text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            오늘의 가이드
+            오늘 가이드
           </button>
 
           {!profile.isPregnant && (
             <button
+              onClick={() => setActiveTab("log")}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+                activeTab === "log"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Milk className="w-3.5 h-3.5" />
+              데일리 기록
+            </button>
+          )}
+
+          {!profile.isPregnant && (
+            <button
+              onClick={() => setActiveTab("growth")}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+                activeTab === "growth"
+                  ? "bg-amber-500 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              성장 도표
+            </button>
+          )}
+
+          {!profile.isPregnant && (
+            <button
+              onClick={() => setActiveTab("vaccine")}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+                activeTab === "vaccine"
+                  ? "bg-teal-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              예방접종
+            </button>
+          )}
+
+          {!profile.isPregnant && (
+            <button
               onClick={() => setActiveTab("wonder")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
                 activeTab === "wonder"
                   ? "bg-purple-600 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -176,7 +243,7 @@ export default function Home() {
           {!profile.isPregnant && (
             <button
               onClick={() => setActiveTab("milestones")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 ${
                 activeTab === "milestones"
                   ? "bg-amber-500 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
@@ -198,6 +265,22 @@ export default function Home() {
             profile={profile}
             onAskAI={handleAskAI}
           />
+        )}
+
+        {activeTab === "log" && !profile.isPregnant && (
+          <DailyLogSection profile={profile} onAskAI={handleAskAI} />
+        )}
+
+        {activeTab === "growth" && !profile.isPregnant && (
+          <GrowthCurveSection
+            profile={profile}
+            status={status}
+            onAskAI={handleAskAI}
+          />
+        )}
+
+        {activeTab === "vaccine" && !profile.isPregnant && (
+          <VaccineSection profile={profile} onAskAI={handleAskAI} />
         )}
 
         {activeTab === "wonder" && !profile.isPregnant && (
@@ -227,12 +310,14 @@ export default function Home() {
       </div>
 
       {/* 6. Sticky Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 px-6">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 py-2 px-4">
         <div className="max-w-md mx-auto flex items-center justify-around">
           <button
             onClick={() => setActiveTab("guide")}
             className={`flex flex-col items-center gap-1 transition-all ${
-              activeTab === "guide" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium"
+              activeTab === "guide"
+                ? "text-amber-600 font-bold scale-105"
+                : "text-slate-400 font-medium"
             }`}
           >
             <BookOpen className="w-5 h-5" />
@@ -241,25 +326,43 @@ export default function Home() {
 
           {!profile.isPregnant && (
             <button
-              onClick={() => setActiveTab("wonder")}
+              onClick={() => setActiveTab("log")}
               className={`flex flex-col items-center gap-1 transition-all ${
-                activeTab === "wonder" ? "text-purple-600 font-bold scale-105" : "text-slate-400 font-medium"
+                activeTab === "log"
+                  ? "text-amber-600 font-bold scale-105"
+                  : "text-slate-400 font-medium"
               }`}
             >
-              <Zap className="w-5 h-5" />
-              <span className="text-[10px]">원더윅스</span>
+              <Milk className="w-5 h-5" />
+              <span className="text-[10px]">기록/타이머</span>
             </button>
           )}
 
           {!profile.isPregnant && (
             <button
-              onClick={() => setActiveTab("milestones")}
+              onClick={() => setActiveTab("growth")}
               className={`flex flex-col items-center gap-1 transition-all ${
-                activeTab === "milestones" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium"
+                activeTab === "growth"
+                  ? "text-amber-600 font-bold scale-105"
+                  : "text-slate-400 font-medium"
               }`}
             >
-              <Award className="w-5 h-5" />
-              <span className="text-[10px]">마일스톤</span>
+              <TrendingUp className="w-5 h-5" />
+              <span className="text-[10px]">성장곡선</span>
+            </button>
+          )}
+
+          {!profile.isPregnant && (
+            <button
+              onClick={() => setActiveTab("vaccine")}
+              className={`flex flex-col items-center gap-1 transition-all ${
+                activeTab === "vaccine"
+                  ? "text-teal-600 font-bold scale-105"
+                  : "text-slate-400 font-medium"
+              }`}
+            >
+              <ShieldCheck className="w-5 h-5" />
+              <span className="text-[10px]">예방접종</span>
             </button>
           )}
 
@@ -307,6 +410,11 @@ export default function Home() {
       />
 
       <PwaPrompt isOpen={isPwaOpen} onClose={() => setIsPwaOpen(false)} />
+
+      <WhiteNoisePlayer
+        isOpen={isWhiteNoiseOpen}
+        onClose={() => setIsWhiteNoiseOpen(false)}
+      />
     </div>
   );
 }
