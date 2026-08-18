@@ -23,6 +23,29 @@ export default function Header({
   onOpenWhiteNoise,
   onOpenChat
 }) {
+  // 사용자 호칭 뱃지 텍스트 계산
+  const getBadgeLabel = () => {
+    if (!currentUser) return "";
+    const name = currentUser.displayName || "";
+    const isGeneric =
+      !name ||
+      name === "카카오 회원" ||
+      name === "네이버 회원" ||
+      name === "카카오" ||
+      name === "네이버" ||
+      name === "소셜 회원" ||
+      name === "게스트 회원";
+
+    const role = currentUser.role || (typeof window !== "undefined" ? localStorage.getItem("datebaby_user_role") : null) || "mom";
+    const roleEmoji = role === "dad" ? "👨" : "👩";
+    const roleText = role === "dad" ? "아빠" : "엄마";
+
+    if (isGeneric) {
+      return `${roleEmoji} ${roleText}`;
+    }
+    return `${roleEmoji} ${name}`;
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-amber-100 shadow-xs px-3 sm:px-4 py-2.5">
       <div className="max-w-md mx-auto flex items-center justify-between">
@@ -59,25 +82,23 @@ export default function Header({
         </button>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {/* Dedicated Login / User Button */}
           {currentUser ? (
             <button
               onClick={onOpenProfile}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black border border-amber-200 transition-all active:scale-95 shadow-2xs"
-              title="내 계정 정보"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black border border-amber-300/80 transition-all active:scale-95 shadow-2xs"
+              title="내 계정 정보 및 아기 설정"
             >
               {currentUser.photoURL ? (
                 <img
                   src={currentUser.photoURL}
                   alt="avatar"
-                  className="w-4 h-4 rounded-full"
+                  className="w-4 h-4 rounded-full border border-amber-300"
                 />
-              ) : (
-                <User className="w-3.5 h-3.5 text-amber-700" />
-              )}
-              <span className="max-w-[56px] truncate text-[11px]">
-                {currentUser.displayName?.split(" ")[0] || "내 계정"}
+              ) : null}
+              <span className="max-w-[70px] truncate">
+                {getBadgeLabel()}
               </span>
             </button>
           ) : (
