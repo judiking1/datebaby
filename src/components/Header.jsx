@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Baby, Sparkles, HeartPulse, Settings, Download, Music } from "lucide-react";
+import { Baby, Sparkles, HeartPulse, Settings, Download, Music, Cloud } from "lucide-react";
 
 export default function Header({
   profile,
@@ -27,13 +27,22 @@ export default function Header({
               <h1 className="font-bold text-slate-800 text-base leading-tight">
                 {profile?.name || "우리 아기"}
               </h1>
-              <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800 border border-amber-200">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
                 {profile?.isPregnant ? "임신 중 🤰" : "성장 중 👶"}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              데이트베이비 • 올인원 육아 케어
-            </p>
+            <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-0.5">
+              <span>데이트베이비</span>
+              {profile?.familyCode && (
+                <>
+                  <span>•</span>
+                  <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    클라우드 연동
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </button>
 

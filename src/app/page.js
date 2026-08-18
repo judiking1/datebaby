@@ -14,6 +14,7 @@ import EmergencyModal from "@/components/EmergencyModal";
 import ProfileModal from "@/components/ProfileModal";
 import PwaPrompt from "@/components/PwaPrompt";
 import WhiteNoisePlayer from "@/components/WhiteNoisePlayer";
+import KakaoInAppHandler from "@/components/KakaoInAppHandler";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
 import { syncFamilyToCloud, listenToFamilyCloud } from "@/lib/firebase";
@@ -26,15 +27,15 @@ import {
   Milk,
   TrendingUp,
   ShieldCheck,
-  Music
+  Music,
+  CheckCircle2
 } from "lucide-react";
 
-// 기본 아기 프로필
 const DEFAULT_PROFILE = {
   isPregnant: false,
   name: "우리 아기",
   gender: "girl",
-  birthDate: "2026-05-20", // 기본 예시 생후 약 90일
+  birthDate: "2026-05-20",
   dueDate: "2026-05-20",
   weight: 6.8,
   familyCode: "dani2026"
@@ -43,8 +44,9 @@ const DEFAULT_PROFILE = {
 export default function Home() {
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState("guide"); // 'guide' | 'log' | 'growth' | 'vaccine' | 'wonder' | 'milestones'
+  const [activeTab, setActiveTab] = useState("guide");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [syncToast, setSyncToast] = useState("");
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -54,29 +56,31 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
-  // Load from LocalStorage or URL params (for spouse sync)
+  // Load from LocalStorage or URL params (1-click invite link)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const urlFamily = params.get("family");
       const urlName = params.get("name");
       const urlMode = params.get("mode");
       const urlDate = params.get("date");
       const urlWeight = params.get("weight");
-      const urlFamily = params.get("family");
 
-      if (urlName && urlDate) {
+      if (urlFamily || urlName) {
         const isPreg = urlMode === "pregnant";
         const syncedProfile = {
-          name: urlName,
+          name: urlName || "우리 아기",
           isPregnant: isPreg,
           gender: "girl",
-          birthDate: !isPreg ? urlDate : urlDate,
-          dueDate: isPreg ? urlDate : urlDate,
+          birthDate: !isPreg && urlDate ? urlDate : "2026-05-20",
+          dueDate: isPreg && urlDate ? urlDate : "2026-05-20",
           weight: parseFloat(urlWeight) || 6.8,
           familyCode: urlFamily || "dani2026"
         };
         setProfile(syncedProfile);
         localStorage.setItem("datebaby_profile", JSON.stringify(syncedProfile));
+        setSyncToast(`🎉 [${syncedProfile.name}] 가족 클라우드에 연결되었습니다!`);
+        setTimeout(() => setSyncToast(""), 4000);
         setIsLoaded(true);
         return;
       }
@@ -91,7 +95,7 @@ export default function Home() {
     setIsLoaded(true);
   }, []);
 
-  // Firebase 실시간 클라우드 리스너 (부부 간 실시간 동기화)
+  // Firebase 실시간 클라우드 리스너 (배우자가 기록 시 즉시 반영)
   useEffect(() => {
     if (!profile?.familyCode) return;
 
@@ -136,7 +140,6 @@ export default function Home() {
     setIsChatOpen(true);
   };
 
-  // Status & Guide calculation
   const status = calculateBabyStatus(profile, currentDate);
   const dailyGuide = getDailyGuide(status);
 
@@ -146,6 +149,17 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans pb-28 selection:bg-amber-200">
+      {/* 0. KakaoTalk in-app escape & smart PWA banner */}
+      <KakaoInAppHandler onOpenPwa={() => setIsPwaOpen(true)} />
+
+      {/* Cloud Sync Toast Notification */}
+      {syncToast && (
+        <div className="bg-emerald-600 text-white text-xs font-black px-4 py-2 text-center shadow-md animate-in slide-in-from-top flex items-center justify-center gap-1.5">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>{syncToast}</span>
+        </div>
+      )}
+
       {/* 1. Header */}
       <Header
         profile={profile}
