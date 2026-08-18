@@ -16,9 +16,10 @@ import {
   loginWithGoogle,
   loginWithEmail,
   registerWithEmail,
-  loginWithSocialProvider,
-  loginAsGuest
+  loginAsGuest,
+  saveUserProfile
 } from "@/lib/firebase";
+import { loginWithKakao, loginWithNaver } from "@/lib/koreanAuth";
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [authMode, setAuthMode] = useState("social"); // 'social' | 'email_login' | 'email_signup'
@@ -30,40 +31,20 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   if (!isOpen) return null;
 
-  const handleGoogle = async () => {
-    try {
-      setLoading(true);
-      setErrorMsg("");
-      const user = await loginWithGoogle();
-      if (onAuthSuccess) onAuthSuccess(user);
-      onClose();
-    } catch (e) {
-      console.warn("Google Auth Error:", e);
-      if (
-        e?.code === "auth/configuration-not-found" ||
-        e?.message?.includes("configuration-not-found")
-      ) {
-        setErrorMsg(
-          "Firebase 콘솔에서 Google 로그인이 활성화되지 않았습니다. [이메일 간편 로그인] 또는 [카카오 로그인]을 이용해주세요!"
-        );
-      } else {
-        setErrorMsg(e?.message || "Google 로그인에 실패했습니다.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleKakao = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
-      // Kakao 1초 소셜 로그인
-      const user = await loginWithSocialProvider("카카오");
+      const user = await loginWithKakao();
+      await saveUserProfile(user.uid, user);
       if (onAuthSuccess) onAuthSuccess(user);
       onClose();
     } catch (e) {
-      setErrorMsg("카카오 로그인 중 오류가 발생했습니다.");
+      console.warn("Kakao Auth Error:", e);
+      setErrorMsg(
+        e?.message ||
+          "카카오 로그인 팝업이 닫혔거나 오류가 발생했습니다. 카카오 개발자 센터에서 카카오 로그인이 활성화(ON)되어 있는지 확인해주세요."
+      );
     } finally {
       setLoading(false);
     }
@@ -73,12 +54,44 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     try {
       setLoading(true);
       setErrorMsg("");
-      // Naver 1초 소셜 로그인
-      const user = await loginWithSocialProvider("네이버");
+      const user = await loginWithNaver();
+      await saveUserProfile(user.uid, user);
       if (onAuthSuccess) onAuthSuccess(user);
       onClose();
     } catch (e) {
-      setErrorMsg("네이버 로그인 중 오류가 발생했습니다.");
+      console.warn("Naver Auth Error:", e);
+      setErrorMsg(e?.message || "네이버 로그인 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const user = await loginWithGoogle();
+      await saveUserProfile(user.uid, {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        provider: "google"
+      });
+      if (onAuthSuccess) onAuthSuccess(user);
+      onClose();
+    } catch (e) {
+      console.warn("Google Auth Error:", e);
+      if (
+        e?.code === "auth/configuration-not-found" ||
+        e?.message?.includes("configuration-not-found")
+      ) {
+        setErrorMsg(
+          "Firebase 콘솔에서 Google 로그인이 활성화되지 않았습니다. [카카오 로그인] 또는 [이메일 간편 가입]을 이용해주세요!"
+        );
+      } else {
+        setErrorMsg(e?.message || "Google 로그인에 실패했습니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -113,7 +126,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     try {
       setLoading(true);
       setErrorMsg("");
-      const user = await registerWithEmail(email, password, displayName || "데이트베이비 회원");
+      const user = await registerWithEmail(
+        email,
+        password,
+        displayName || "데이트베이비 회원"
+      );
+      await saveUserProfile(user.uid, {
+        uid: user.uid,
+        displayName: displayName || "데이트베이비 회원",
+        email: user.email,
+        provider: "email"
+      });
       if (onAuthSuccess) onAuthSuccess(user);
       onClose();
     } catch (e) {
@@ -199,7 +222,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         <div className="p-5 space-y-4 bg-white text-slate-800">
           {/* Error Message Banner */}
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-700">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-700 leading-relaxed">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
@@ -207,14 +230,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           {authMode === "social" && (
             <div className="space-y-2.5">
-              {/* 1. Kakao Login Button */}
+              {/* 1. Kakao Official Login Button */}
               <button
                 onClick={handleKakao}
                 disabled={loading}
                 className="w-full py-3.5 px-4 bg-[#FEE500] hover:bg-[#FDD800] text-[#191919] font-black text-xs rounded-2xl flex items-center justify-center gap-2.5 shadow-sm active:scale-95 transition-all"
               >
                 <svg
-                  className="w-4 h-4 fill-current"
+                  className="w-4 h-4 fill-current shrink-0"
                   viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
@@ -223,13 +246,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 카카오로 1초 시작하기
               </button>
 
-              {/* 2. Naver Login Button */}
+              {/* 2. Naver Official Login Button */}
               <button
                 onClick={handleNaver}
                 disabled={loading}
                 className="w-full py-3.5 px-4 bg-[#03C75A] hover:bg-[#02B350] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2.5 shadow-sm active:scale-95 transition-all"
               >
-                <span className="font-extrabold text-sm">N</span>
+                <span className="font-black text-sm shrink-0">N</span>
                 네이버로 1초 시작하기
               </button>
 
@@ -239,7 +262,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 disabled={loading}
                 className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl flex items-center justify-center gap-2.5 border border-slate-300 shadow-2xs active:scale-95 transition-all"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"

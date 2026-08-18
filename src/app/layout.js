@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,7 +46,19 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className="min-h-full flex flex-col bg-slate-100/50">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-100/50">
+        {children}
+        {/* 카카오 공식 JavaScript SDK */}
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+          strategy="afterInteractive"
+        />
+        {/* 네이버 아이디로 로그인 SDK */}
+        <Script
+          src="https://static.nid.naver.com/js/naveridlogin_js_sdk_2.0.2.js"
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }
