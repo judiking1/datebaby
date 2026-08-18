@@ -139,6 +139,20 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
+  // Safe UTF-8 Decoder for Korean text in URLs & localStorage
+  const safeDecode = (str) => {
+    if (!str) return str;
+    try {
+      return decodeURIComponent(decodeURIComponent(str));
+    } catch (e) {
+      try {
+        return decodeURIComponent(str);
+      } catch (err) {
+        return str;
+      }
+    }
+  };
+
   // 3. Load from LocalStorage or URL params (1-click invite link)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -153,14 +167,17 @@ export default function Home() {
 
       if (urlFamily || urlName) {
         const isPreg = urlMode === "pregnant";
+        const cleanName = safeDecode(urlName) || "우리 아기";
+        const cleanFamily = (safeDecode(urlFamily) || "dani2026").trim().toLowerCase();
+
         const syncedProfile = {
-          name: urlName || "우리 아기",
+          name: cleanName,
           isPregnant: isPreg,
           gender: "girl",
           birthDate: !isPreg && urlDate ? urlDate : "2026-05-20",
           dueDate: isPreg && urlDate ? urlDate : "2026-05-20",
           weight: parseFloat(urlWeight) || 6.8,
-          familyCode: urlFamily || "dani2026"
+          familyCode: cleanFamily
         };
         setProfile(syncedProfile);
         localStorage.setItem("datebaby_profile", JSON.stringify(syncedProfile));
@@ -173,7 +190,9 @@ export default function Home() {
     const saved = localStorage.getItem("datebaby_profile");
     if (saved) {
       try {
-        setProfile(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.name) parsed.name = safeDecode(parsed.name);
+        setProfile(parsed);
       } catch (e) {}
     }
   }, []);
