@@ -59,6 +59,23 @@ export default function DailyGuideSection({
             <p className="leading-relaxed font-medium">"{guide.quote}"</p>
           </div>
         )}
+
+        {/* Daily Couple Quest */}
+        {guide.dailyQuest && (
+          <div className="mt-2.5 p-3 rounded-2xl bg-linear-to-r from-purple-50 to-indigo-50 border border-purple-100/80 flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-purple-200/70 text-purple-800 flex items-center justify-center shrink-0 font-bold text-xs mt-0.5">
+              🎯
+            </div>
+            <div>
+              <div className="text-[11px] font-black text-purple-900">
+                오늘 하루 부부 데일리 미션
+              </div>
+              <p className="text-xs font-semibold text-purple-800 leading-snug mt-0.5">
+                {guide.dailyQuest}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Pillar 1: Baby State & Behavior Forecast */}

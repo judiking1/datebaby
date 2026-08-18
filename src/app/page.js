@@ -16,6 +16,7 @@ import AuthModal from "@/components/AuthModal";
 import PwaPrompt from "@/components/PwaPrompt";
 import WhiteNoisePlayer from "@/components/WhiteNoisePlayer";
 import KakaoInAppHandler from "@/components/KakaoInAppHandler";
+import VersionUpdateNotifier from "@/components/VersionUpdateNotifier";
 import { calculateBabyStatus, formatISODate } from "@/lib/dateUtils";
 import { getDailyGuide } from "@/data/guideData";
 import {
@@ -328,7 +329,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans pb-28 selection:bg-amber-200">
-      {/* 0. KakaoTalk in-app escape & smart PWA banner */}
+      {/* 0. Live Update Notifier & KakaoTalk in-app escape */}
+      <VersionUpdateNotifier />
       <KakaoInAppHandler onOpenPwa={() => setIsPwaOpen(true)} />
 
       {/* Cloud Sync Toast Notification */}

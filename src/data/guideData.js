@@ -612,15 +612,47 @@ export const MONTHLY_GUIDES = {
   }
 };
 
+const PREGNANCY_DAILY_WHISPERS = [
+  {
+    whisper: "엄마, 아빠! 오늘부터 새로운 한 주가 시작되었어요. 뱃속에서 콩닥콩닥 제 심장이 힘차게 뛰고 있어요!",
+    quest: "아침에 일어나 따뜻한 미온수 한 잔 마시기 & 배 쓰다듬으며 좋은 아침 인사 건네기"
+  },
+  {
+    whisper: "엄마의 심장 박동과 목소리가 양수를 타고 전해져요. 엄마가 편안하면 저도 가장 행복해요.",
+    quest: "아빠가 좋아하는 태교 음악 1곡 선곡해서 엄마와 함께 5분간 눈감고 감상하기"
+  },
+  {
+    whisper: "작은 손가락과 발가락, 뇌세포가 오늘도 열심히 자라나고 있어요. 영양 가득한 식사 챙겨주셔서 고마워요!",
+    quest: "아빠가 단백질과 비타민이 풍부한 식사 또는 신선한 제철 과일 챙겨주기"
+  },
+  {
+    whisper: "엄마, 혹시 몸이 무겁거나 입덧으로 힘드신가요? 제가 쑥쑥 자라느라 보내는 신호예요, 힘내세요!",
+    quest: "퇴근길에 아내를 꼭 안아주며 '오늘도 아기 품느라 고생 많았어'라고 진심 어린 칭찬 건네기"
+  },
+  {
+    whisper: "아빠의 중저음 목소리는 양수를 가장 잘 통과한대요. 오늘도 다정하게 태담 들려주실 거죠?",
+    quest: "잠들기 전 아빠가 배에 손을 얹고 3분 동안 오늘 하루 있었던 일 조곤조곤 이야기해주기"
+  },
+  {
+    whisper: "엄마, 아빠가 함께 웃으실 때 엔도르핀이 제게도 전달되어 기분이 정말 좋아져요!",
+    quest: "부부가 손잡고 공원이나 집 주변 20분 가볍게 산책하며 맑은 공기 마시기"
+  },
+  {
+    whisper: "벌써 이번 주도 건강하게 잘 자라났어요! 다음 주에는 제가 얼마나 더 커져 있을지 기대해주세요.",
+    quest: "이번 주 주수 사진(주수 플랫/배 사진) 한 장 남기고 이번 주 수고한 서로에게 토닥토닥 해주기"
+  }
+];
+
 /**
  * 상태(임신 또는 출산 후 일수/월령)에 따라 최적의 일별 가이드 추출
  */
 export function getDailyGuide(status) {
   if (status.isPregnant) {
-    // 임신 모드: 정확한 주차(4~40주) 매핑
+    // 임신 모드: 정확한 주차(4~40주) 및 일차(0~6일) 매핑
     const weeks = Math.max(4, Math.min(40, status.gestationalWeeks || 4));
     const days = status.gestationalDays || 0;
     const base = PREGNANCY_GUIDES[weeks] || PREGNANCY_GUIDES[4];
+    const dailyWhisperData = PREGNANCY_DAILY_WHISPERS[days % 7] || PREGNANCY_DAILY_WHISPERS[0];
 
     return {
       type: "pregnancy",
@@ -629,10 +661,12 @@ export function getDailyGuide(status) {
       heroTitle: `[임신 ${weeks}주차] ${base.title}`,
       sizeComparison: base.sizeComparison,
       babyBehavior: base.babyState,
+      dailyWhisper: dailyWhisperData.whisper,
+      dailyQuest: dailyWhisperData.quest,
       parentAction: `🤰 [엄마 상태]\n${base.momState}\n\n👨‍🍼 [아빠 필수 미션]\n${base.dadMission}`,
       safetyHealth: base.checklist.map(c => `• ${c}`).join("\n"),
       sensoryPlay: base.tips,
-      quote: "뱃속의 작은 생명이 매일 기적처럼 자라나고 있습니다. 아기와 함께하는 하루하루를 소중히 기억해주세요."
+      quote: dailyWhisperData.whisper
     };
   }
 
