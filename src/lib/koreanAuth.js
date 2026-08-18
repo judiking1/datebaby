@@ -1,12 +1,10 @@
 // koreanAuth.js - 카카오 및 네이버 공식 소셜 로그인 연동 모듈
 import {
-  getFirebaseAuth,
-  saveUserProfile
+  getFirebaseDb,
+  saveUserProfile,
+  getUserProfile
 } from "@/lib/firebase";
-import {
-  signInAnonymously,
-  updateProfile
-} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export const KAKAO_JS_KEY =
   process.env.NEXT_PUBLIC_KAKAO_JS_KEY || "5ca87ef6ce909b4edf335ad5abc9806c";
@@ -62,8 +60,8 @@ export function loginWithKakao() {
                     profile.thumbnail_image_url ||
                     null;
 
-                  // Firebase Auth 익명 세션과 매핑
-                  const authUser = await linkWithFirebaseAuth({
+                  const authUser = await registerSocialUser({
+                    uid: `kakao_${res.id}`,
                     displayName: nickname,
                     photoURL,
                     provider: "kakao",
@@ -73,7 +71,8 @@ export function loginWithKakao() {
                   resolve(authUser);
                 },
                 fail: async function () {
-                  const fallbackUser = await linkWithFirebaseAuth({
+                  const fallbackUser = await registerSocialUser({
+                    uid: `kakao_${Date.now().toString().slice(-6)}`,
                     displayName: "카카오 회원",
                     provider: "kakao"
                   });
@@ -81,7 +80,11 @@ export function loginWithKakao() {
                 }
               });
             } else {
-              linkWithFirebaseAuth({ displayName: "카카오 회원", provider: "kakao" }).then(resolve);
+              registerSocialUser({
+                uid: `kakao_${Date.now().toString().slice(-6)}`,
+                displayName: "카카오 회원",
+                provider: "kakao"
+              }).then(resolve);
             }
           },
           fail: function (err) {
@@ -95,8 +98,12 @@ export function loginWithKakao() {
       console.warn("Kakao SDK Exception:", e);
     }
 
-    // Fallback: SDK 미지원 시 익명 세션으로 연결
-    linkWithFirebaseAuth({ displayName: "카카오 회원", provider: "kakao" }).then(resolve).catch(reject);
+    // Fallback: SDK 미지원 시 로컬 및 Firestore 세션으로 연결
+    registerSocialUser({
+      uid: `kakao_${Date.now().toString().slice(-6)}`,
+      displayName: "카카오 회원",
+      provider: "kakao"
+    }).then(resolve).catch(reject);
   });
 }
 
@@ -106,7 +113,11 @@ export function loginWithKakao() {
 export function loginWithNaver() {
   return new Promise((resolve) => {
     if (typeof window === "undefined") {
-      resolve(createNaverTempUser());
+      registerSocialUser({
+        uid: `naver_${Date.now().toString().slice(-6)}`,
+        displayName: "네이버 회원",
+        provider: "naver"
+      }).then(resolve);
       return;
     }
 
@@ -124,14 +135,19 @@ export function loginWithNaver() {
       );
 
       if (!popup) {
-        linkWithFirebaseAuth({ displayName: "네이버 회원", provider: "naver" }).then(resolve);
+        registerSocialUser({
+          uid: `naver_${Date.now().toString().slice(-6)}`,
+          displayName: "네이버 회원",
+          provider: "naver"
+        }).then(resolve);
         return;
       }
 
       const checkPopup = setInterval(async () => {
         if (popup.closed) {
           clearInterval(checkPopup);
-          const authUser = await linkWithFirebaseAuth({
+          const authUser = await registerSocialUser({
+            uid: `naver_${Date.now().toString().slice(-6)}`,
             displayName: "네이버 회원",
             provider: "naver"
           });
@@ -139,78 +155,40 @@ export function loginWithNaver() {
         }
       }, 1000);
     } catch (e) {
-      linkWithFirebaseAuth({ displayName: "네이버 회원", provider: "naver" }).then(resolve);
+      registerSocialUser({
+        uid: `naver_${Date.now().toString().slice(-6)}`,
+        displayName: "네이버 회원",
+        provider: "naver"
+      }).then(resolve);
     }
   });
 }
 
-function createNaverTempUser() {
-  const randId = Math.random().toString(36).substring(2, 8);
-  return {
-    uid: `naver_${randId}`,
-    displayName: "네이버 회원",
-    photoURL: null,
-    email: `naver_${randId}@datebaby.app`,
-    provider: "naver"
-  };
-}
-
 /**
- * 소셜 로그인 사용자 정보를 Firebase Auth 및 Firestore users 컬렉션에 실시간 등록
+ * 소셜 로그인 사용자 정보를 Firestore users 컬렉션 및 LocalStorage에 직접 영구 저장
  */
-async function linkWithFirebaseAuth({ displayName, photoURL = null, provider = "social", kakaoId = null }) {
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    return {
-      uid: `${provider}_${Date.now()}`,
-      displayName,
-      photoURL,
-      provider
-    };
-  }
-
-  let user = auth.currentUser;
-  if (!user) {
-    const cred = await signInAnonymously(auth);
-    user = cred.user;
-  }
-
-  if (user) {
-    try {
-      await updateProfile(user, {
-        displayName: displayName || "소셜 회원",
-        photoURL: photoURL || null
-      });
-    } catch (e) {}
-
-    // Firestore users 컬렉션에 영구 저장
-    await saveUserProfile(user.uid, {
-      uid: user.uid,
-      displayName: displayName || "소셜 회원",
-      photoURL: photoURL || null,
-      provider,
-      kakaoId: kakaoId || null,
-      updatedAt: new Date().toISOString()
-    });
-
-    const userObj = {
-      uid: user.uid,
-      displayName: displayName || "소셜 회원",
-      photoURL: photoURL || null,
-      email: user.email || `${provider}_${user.uid.slice(-6)}@datebaby.app`,
-      provider
-    };
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("datebaby_user", JSON.stringify(userObj));
-    }
-    return userObj;
-  }
-
-  return {
-    uid: `${provider}_${Date.now()}`,
-    displayName,
-    photoURL,
-    provider
+async function registerSocialUser({ uid, displayName, photoURL = null, provider = "social", kakaoId = null }) {
+  const existing = await getUserProfile(uid);
+  const userObj = {
+    uid,
+    displayName: existing?.displayName || displayName || "소셜 회원",
+    photoURL: existing?.photoURL || photoURL || null,
+    provider,
+    kakaoId: kakaoId || existing?.kakaoId || null,
+    familyCode: existing?.familyCode || null,
+    role: existing?.role || localStorage.getItem("datebaby_user_role") || "mom",
+    updatedAt: new Date().toISOString()
   };
+
+  // Firestore `users/{uid}` 문서에 저장
+  await saveUserProfile(uid, userObj);
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("datebaby_user", JSON.stringify(userObj));
+    if (userObj.role) {
+      localStorage.setItem("datebaby_user_role", userObj.role);
+    }
+  }
+
+  return userObj;
 }

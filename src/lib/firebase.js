@@ -153,9 +153,23 @@ export async function loginWithSocialProvider(providerName, defaultEmail = "") {
  */
 export async function loginAsGuest() {
   const auth = getFirebaseAuth();
-  if (!auth) throw new Error("Firebase Auth가 초기화되지 않았습니다.");
-  const result = await signInAnonymously(auth);
-  return result.user;
+  try {
+    if (auth) {
+      const result = await signInAnonymously(auth);
+      return result.user;
+    }
+  } catch (e) {
+    console.warn("Guest sign-in fallback:", e);
+  }
+  const guestObj = {
+    uid: `guest_${Date.now().toString().slice(-6)}`,
+    displayName: "게스트 회원",
+    isAnonymous: true
+  };
+  if (typeof window !== "undefined") {
+    localStorage.setItem("datebaby_user", JSON.stringify(guestObj));
+  }
+  return guestObj;
 }
 
 /**
@@ -164,7 +178,12 @@ export async function loginAsGuest() {
 export async function logoutUser() {
   const auth = getFirebaseAuth();
   if (auth) {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {}
+  }
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("datebaby_user");
   }
 }
 

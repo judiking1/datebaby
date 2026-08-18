@@ -64,19 +64,19 @@ export default function Header({
           {currentUser ? (
             <button
               onClick={onOpenProfile}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black border border-amber-200 transition-all active:scale-95 shadow-2xs"
               title="내 계정 정보"
             >
               {currentUser.photoURL ? (
                 <img
                   src={currentUser.photoURL}
                   alt="avatar"
-                  className="w-5 h-5 rounded-full"
+                  className="w-4 h-4 rounded-full"
                 />
               ) : (
-                <User className="w-3.5 h-3.5 text-slate-600" />
+                <User className="w-3.5 h-3.5 text-amber-700" />
               )}
-              <span className="max-w-[48px] truncate hidden sm:inline">
+              <span className="max-w-[56px] truncate text-[11px]">
                 {currentUser.displayName?.split(" ")[0] || "내 계정"}
               </span>
             </button>

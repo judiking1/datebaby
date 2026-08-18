@@ -67,6 +67,13 @@ export default function ProfileModal({
     }
     const savedRole = localStorage.getItem("datebaby_user_role");
     if (savedRole) setUserRole(savedRole);
+
+    const savedUser = localStorage.getItem("datebaby_user");
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {}
+    }
   }, [profile, isOpen]);
 
   // Listen to Firebase Auth state
@@ -75,8 +82,8 @@ export default function ProfileModal({
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
       if (user) {
+        setCurrentUser(user);
         const uProfile = await getUserProfile(user.uid);
         if (uProfile?.role) {
           setUserRole(uProfile.role);
