@@ -82,9 +82,16 @@ export default function ProfileModal({
       setAuthLoading(true);
       const user = await loginWithGoogle();
       setCurrentUser(user);
+      alert("🎉 Google 로그인이 완료되었습니다!");
     } catch (e) {
       console.warn("Google Login Error:", e);
-      alert("로그인 중 오류가 발생했습니다: " + (e.message || "다시 시도해주세요."));
+      if (e?.code === "auth/configuration-not-found" || e?.message?.includes("configuration-not-found")) {
+        alert(
+          "⚠️ Firebase 콘솔에서 Google 로그인이 아직 활성화되지 않았습니다.\n\n[설정 방법 (1분 소요)]\n1. Firebase 콘솔 > 좌측 [Authentication]\n2. [로그인 방법(Sign-in method)] 탭 > [Google] 사용 설정\n3. [설정] > [승인된 도메인]에 datebaby.vercel.app 추가\n\n* 구글 로그인 설정 전에도 [카카오톡 배우자 초대하기]와 실시간 클라우드 동기화는 100% 정상 작동합니다!"
+        );
+      } else {
+        alert("로그인 안내: " + (e.message || "다시 시도해주세요."));
+      }
     } finally {
       setAuthLoading(false);
     }
