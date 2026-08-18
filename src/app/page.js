@@ -60,18 +60,42 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
-  // Prevent Hydration mismatch
+  // Prevent Hydration mismatch & Handle OAuth popup window close
   useEffect(() => {
     setIsLoaded(true);
+
+    if (typeof window !== "undefined" && window.opener) {
+      try {
+        window.close();
+      } catch (e) {}
+    }
   }, []);
 
-  // Firebase Auth state listener
+  // Firebase Auth state listener & LocalStorage user restoration
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("datebaby_user");
+      if (savedUser) {
+        try {
+          setCurrentUser(JSON.parse(savedUser));
+        } catch (e) {}
+      }
+    }
+
     const auth = getFirebaseAuth();
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+      if (user) {
+        const u = {
+          uid: user.uid,
+          displayName: user.displayName || "보호자",
+          email: user.email,
+          photoURL: user.photoURL
+        };
+        setCurrentUser(u);
+        localStorage.setItem("datebaby_user", JSON.stringify(u));
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -439,6 +463,8 @@ export default function Home() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          localStorage.setItem("datebaby_user", JSON.stringify(user));
           setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
           setTimeout(() => setSyncToast(""), 4000);
         }}
