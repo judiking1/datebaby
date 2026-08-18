@@ -28,11 +28,13 @@ import {
 } from "@/lib/logUtils";
 import { syncFamilyToCloud } from "@/lib/firebase";
 
+import { formatISODate } from "@/lib/dateUtils";
+
 export default function DailyLogSection({ profile, onAskAI }) {
   const [logs, setLogs] = useState([]);
   const [selectedType, setSelectedType] = useState("bottle"); // 'bottle' | 'breast' | 'sleep' | 'diaper' | 'food' | 'temp'
   const [targetDateStr, setTargetDateStr] = useState(
-    new Date().toISOString().split("T")[0]
+    formatISODate(new Date())
   );
 
   // Input states
@@ -87,12 +89,25 @@ export default function DailyLogSection({ profile, onAskAI }) {
   }, [isSleeping, sleepStartTime]);
 
   const handleAddLog = (data) => {
-    const userRole = localStorage.getItem("datebaby_user_role") || "mom";
-    const authorTag = userRole === "dad" ? "아빠" : userRole === "mom" ? "엄마" : "가족";
+    let authorTag = "엄마";
+    let authorName = "";
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("datebaby_user");
+      if (savedUser) {
+        try {
+          const u = JSON.parse(savedUser);
+          if (u.displayName) authorName = u.displayName;
+          if (u.role === "dad") authorTag = "아빠";
+        } catch (e) {}
+      }
+      const role = localStorage.getItem("datebaby_user_role");
+      if (role === "dad") authorTag = "아빠";
+    }
 
     const updated = addLogItem({
       ...data,
-      authorRole: authorTag
+      authorRole: authorTag,
+      authorName: authorName || authorTag
     });
     setLogs(updated);
 
