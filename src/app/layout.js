@@ -22,8 +22,8 @@ export const metadata = {
     title: "데이트베이비",
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/icon.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
