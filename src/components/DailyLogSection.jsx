@@ -87,7 +87,13 @@ export default function DailyLogSection({ profile, onAskAI }) {
   }, [isSleeping, sleepStartTime]);
 
   const handleAddLog = (data) => {
-    const updated = addLogItem(data);
+    const userRole = localStorage.getItem("datebaby_user_role") || "mom";
+    const authorTag = userRole === "dad" ? "아빠" : userRole === "mom" ? "엄마" : "가족";
+
+    const updated = addLogItem({
+      ...data,
+      authorRole: authorTag
+    });
     setLogs(updated);
 
     // Sync with Firebase Firestore
@@ -723,7 +729,26 @@ export default function DailyLogSection({ profile, onAskAI }) {
                       <div className="text-xs font-black text-slate-800">
                         {item.note || typeConfig.label}
                       </div>
-                      <div className="text-[10px] text-slate-400">{timeStr}</div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                        <span>{timeStr}</span>
+                        {item.authorRole && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md font-bold text-[9px] ${
+                              item.authorRole === "엄마"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : item.authorRole === "아빠"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {item.authorRole === "엄마"
+                              ? "👩 엄마 기록"
+                              : item.authorRole === "아빠"
+                              ? "👨 아빠 기록"
+                              : `👶 ${item.authorRole}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

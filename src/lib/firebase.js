@@ -131,20 +131,18 @@ export async function registerWithEmail(email, password, displayName) {
 }
 
 /**
- * 카카오 / 네이버 웹 간편 로그인 (시뮬레이션 및 계정 생성 지원)
+ * 카카오 / 네이버 웹 간편 로그인
  */
 export async function loginWithSocialProvider(providerName, defaultEmail = "") {
   const auth = getFirebaseAuth();
   if (!auth) throw new Error("Firebase Auth가 초기화되지 않았습니다.");
   
-  // 소셜 로그인 프로필 자동 생성 및 게스트/이메일 세션 매핑
-  const tempEmail = defaultEmail || `${providerName}_user_${Date.now()}@datebaby.app`;
+  const tempEmail = defaultEmail || `${providerName.toLowerCase()}_user_${Date.now().toString().slice(-6)}@datebaby.app`;
   const tempPass = "DateBabySocialAuth!2026";
   try {
     const user = await registerWithEmail(tempEmail, tempPass, `${providerName} 회원`);
     return user;
   } catch (e) {
-    // 이미 있는 경우 로그인
     const user = await loginWithEmail(tempEmail, tempPass);
     return user;
   }
@@ -171,6 +169,46 @@ export async function logoutUser() {
 }
 
 /**
+ * 사용자 프로필 저장 (`users/{uid}`)
+ */
+export async function saveUserProfile(uid, userData) {
+  const db = getFirebaseDb();
+  if (!db || !uid) return false;
+
+  try {
+    const userRef = doc(db, "users", uid);
+    await setDoc(
+      userRef,
+      {
+        ...userData,
+        updatedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (error) {
+    console.error("Save User Profile Error:", error);
+    return false;
+  }
+}
+
+/**
+ * 사용자 프로필 불러오기 (`users/{uid}`)
+ */
+export async function getUserProfile(uid) {
+  const db = getFirebaseDb();
+  if (!db || !uid) return null;
+
+  try {
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
+    return snap.exists() ? snap.data() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * 가족 코드(familyCode) 문서에 아기 프로필, 데일리 로그, 마일스톤, 예방접종 등 실시간 저장
  */
 export async function syncFamilyToCloud(familyCode, data) {
@@ -191,6 +229,38 @@ export async function syncFamilyToCloud(familyCode, data) {
     return true;
   } catch (error) {
     console.error("Firestore Save Error:", error);
+    return false;
+  }
+}
+
+/**
+ * 가족 문서에 구성원(엄마 / 아빠) 등록
+ */
+export async function registerFamilyMember(familyCode, memberInfo) {
+  const db = getFirebaseDb();
+  if (!db || !familyCode || !memberInfo?.uid) return false;
+
+  try {
+    const cleanCode = familyCode.trim().toLowerCase();
+    const familyRef = doc(db, "datebaby_families", cleanCode);
+    await setDoc(
+      familyRef,
+      {
+        members: {
+          [memberInfo.uid]: {
+            name: memberInfo.name || "보호자",
+            role: memberInfo.role || "엄마(아내)",
+            photoURL: memberInfo.photoURL || null,
+            joinedAt: new Date().toISOString()
+          }
+        },
+        updatedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (error) {
+    console.error("Register Family Member Error:", error);
     return false;
   }
 }
