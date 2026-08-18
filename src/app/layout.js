@@ -48,9 +48,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-full flex flex-col bg-slate-100/50">
         {children}
-        {/* 카카오 공식 JavaScript SDK */}
+        {/* 카카오 공식 JavaScript SDK (Kakao.Auth.login 지원 공식 스크립트) */}
         <Script
-          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+          src="https://developers.kakao.com/sdk/js/kakao.min.js"
           strategy="afterInteractive"
         />
         {/* 네이버 아이디로 로그인 SDK */}

@@ -41,10 +41,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       onClose();
     } catch (e) {
       console.warn("Kakao Auth Error:", e);
-      setErrorMsg(
-        e?.message ||
-          "카카오 로그인 팝업이 닫혔거나 오류가 발생했습니다. 카카오 개발자 센터에서 카카오 로그인이 활성화(ON)되어 있는지 확인해주세요."
-      );
+      setErrorMsg(e?.message || "카카오 로그인 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -165,8 +162,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-200 my-auto">
         {/* Header */}
         <div className="p-4 bg-linear-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2.5">
