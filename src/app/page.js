@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Header from "@/components/Header";
 import BabyDateHero from "@/components/BabyDateHero";
 import DailyGuideSection from "@/components/DailyGuideSection";
@@ -24,6 +24,7 @@ import {
   getFirebaseAuth,
   getUserProfile
 } from "@/lib/firebase";
+import { registerSocialUser } from "@/lib/koreanAuth";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   BookOpen,
@@ -65,18 +66,37 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState("");
 
-  // 1. Handle OAuth Popup Callback (Naver & Kakao)
+  const handleAuthSuccess = useCallback(async (user) => {
+    setCurrentUser(user);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("datebaby_user", JSON.stringify(user));
+    }
+    setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
+    setTimeout(() => setSyncToast(""), 4000);
+
+    // 사용자의 기존 등록 아기 코드가 있으면 자동 동기화
+    if (user?.uid) {
+      const uProfile = await getUserProfile(user.uid);
+      if (uProfile?.familyCode) {
+        setProfile((prev) => ({
+          ...prev,
+          familyCode: uProfile.familyCode
+        }));
+      }
+    }
+  }, []);
+
+  // 1. Handle OAuth Callback (Popup for Desktop + Direct Redirect for Mobile)
   useEffect(() => {
     setIsLoaded(true);
 
     if (typeof window !== "undefined") {
-      // 팝업 창 안에서 콜백이 실행된 경우 부모 창에 메시지 전달 후 닫기
+      const hash = window.location.hash;
+      const search = window.location.search;
+
+      // 1-A. Popup Mode (Desktop popup window)
       if (window.opener) {
         try {
-          const hash = window.location.hash;
-          const search = window.location.search;
-
-          // 네이버 액세스 토큰 감지
           if (hash.includes("access_token=")) {
             const params = new URLSearchParams(hash.replace("#", "?"));
             const token = params.get("access_token");
@@ -90,7 +110,6 @@ export default function Home() {
             }
           }
 
-          // 카카오 인가 코드 감지
           if (search.includes("code=")) {
             const params = new URLSearchParams(search);
             const code = params.get("code");
@@ -106,9 +125,56 @@ export default function Home() {
 
           window.close();
         } catch (e) {}
+        return;
+      }
+
+      // 1-B. Mobile Direct Redirect Mode (Main window callback)
+      if (search.includes("code=")) {
+        const params = new URLSearchParams(search);
+        const code = params.get("code");
+        if (code) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          fetch("/api/auth/kakao-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code,
+              redirectUri: window.location.origin
+            })
+          })
+            .then((res) => res.json())
+            .then(async (profileData) => {
+              if (profileData?.uid) {
+                const savedUser = await registerSocialUser(profileData);
+                handleAuthSuccess(savedUser);
+              }
+            })
+            .catch((err) => console.warn("Mobile Kakao Auth Err:", err));
+        }
+      }
+
+      if (hash.includes("access_token=")) {
+        const params = new URLSearchParams(hash.replace("#", "?"));
+        const token = params.get("access_token");
+        if (token) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          fetch("/api/auth/naver-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: token })
+          })
+            .then((res) => res.json())
+            .then(async (profileData) => {
+              if (profileData?.uid) {
+                const savedUser = await registerSocialUser(profileData);
+                handleAuthSuccess(savedUser);
+              }
+            })
+            .catch((err) => console.warn("Mobile Naver Auth Err:", err));
+        }
       }
     }
-  }, []);
+  }, [handleAuthSuccess]);
 
   // 2. Firebase Auth state listener & LocalStorage user restoration
   useEffect(() => {
@@ -236,26 +302,6 @@ export default function Home() {
   const handleAskAI = (question) => {
     setChatQuestion(question);
     setIsChatOpen(true);
-  };
-
-  const handleAuthSuccess = async (user) => {
-    setCurrentUser(user);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("datebaby_user", JSON.stringify(user));
-    }
-    setSyncToast(`🎉 ${user.displayName || "회원"}님 환영합니다!`);
-    setTimeout(() => setSyncToast(""), 4000);
-
-    // 사용자의 기존 등록 아기 코드가 있으면 자동 동기화
-    if (user?.uid) {
-      const uProfile = await getUserProfile(user.uid);
-      if (uProfile?.familyCode) {
-        setProfile((prev) => ({
-          ...prev,
-          familyCode: uProfile.familyCode
-        }));
-      }
-    }
   };
 
   const status = calculateBabyStatus(profile, currentDate);

@@ -1,4 +1,4 @@
-// koreanAuth.js - 카카오 및 네이버 실제 닉네임/프로필 자동 수신 소셜 로그인 모듈
+// koreanAuth.js - 모바일 및 PC 완벽 지원 카카오/네이버 소셜 로그인 모듈
 import { saveUserProfile, getUserProfile } from "@/lib/firebase";
 
 export const KAKAO_JS_KEY =
@@ -8,7 +8,17 @@ export const NAVER_CLIENT_ID =
   process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || "r4vm_43RmPIoawt4TcDs";
 
 /**
- * 네이버 1초 간편 로그인 (실제 네이버 닉네임/이름/프로필 사진 자동 조회)
+ * 모바일 환경 감지 헬퍼
+ */
+export function isMobileDevice() {
+  if (typeof window === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|KakaoTalk/i.test(
+    navigator.userAgent
+  );
+}
+
+/**
+ * 네이버 1초 간편 로그인 (모바일 리다이렉트 + PC 팝업 듀얼 지원)
  */
 export function loginWithNaver() {
   return new Promise((resolve, reject) => {
@@ -23,6 +33,13 @@ export function loginWithNaver() {
     const redirectUri = encodeURIComponent(window.location.origin);
     const authUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=token&client_id=${NAVER_CLIENT_ID}&redirect_uri=${redirectUri}&state=${state}`;
 
+    // 모바일에서는 팝업 차단 및 opener 유실 방지를 위해 직접 리다이렉트
+    if (isMobileDevice()) {
+      window.location.href = authUrl;
+      return;
+    }
+
+    // PC 브라우저: 팝업 실행
     const popup = window.open(
       authUrl,
       "naver_login_popup",
@@ -30,13 +47,13 @@ export function loginWithNaver() {
     );
 
     if (!popup) {
-      reject(new Error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."));
+      // 팝업 차단 시 리다이렉트로 자동 전환
+      window.location.href = authUrl;
       return;
     }
 
     let isResolved = false;
 
-    // 팝업으로부터 토큰 메시지 수신 대기
     const messageHandler = async (event) => {
       if (event.origin !== window.location.origin) return;
 
@@ -44,7 +61,6 @@ export function loginWithNaver() {
         isResolved = true;
         window.removeEventListener("message", messageHandler);
         try {
-          // 서버 API를 통해 실제 네이버 프로필 조회
           const res = await fetch("/api/auth/naver-profile", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -67,7 +83,6 @@ export function loginWithNaver() {
 
     window.addEventListener("message", messageHandler);
 
-    // 팝업 닫힘 감지
     const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
@@ -83,7 +98,7 @@ export function loginWithNaver() {
 }
 
 /**
- * 카카오 1초 간편 로그인 (실제 카카오 닉네임/프로필 사진 자동 조회)
+ * 카카오 1초 간편 로그인 (모바일 리다이렉트 + PC 팝업 듀얼 지원)
  */
 export function loginWithKakao() {
   return new Promise((resolve, reject) => {
@@ -98,6 +113,13 @@ export function loginWithKakao() {
       redirectUri
     )}&response_type=code&state=${state}`;
 
+    // 모바일에서는 팝업 차단 방지 및 매끄러운 1초 로그인을 위해 직접 리다이렉트
+    if (isMobileDevice()) {
+      window.location.href = authUrl;
+      return;
+    }
+
+    // PC 브라우저: 팝업 실행
     const popup = window.open(
       authUrl,
       "kakao_login_popup",
@@ -105,13 +127,12 @@ export function loginWithKakao() {
     );
 
     if (!popup) {
-      reject(new Error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."));
+      window.location.href = authUrl;
       return;
     }
 
     let isResolved = false;
 
-    // 카카오 인가 코드 수신 대기
     const messageHandler = async (event) => {
       if (event.origin !== window.location.origin) return;
 
@@ -180,7 +201,7 @@ export async function registerSocialUser({
     updatedAt: new Date().toISOString()
   };
 
-  // Firestore `users/{uid}` 고유 문서에 덮어쓰기/병합 (새 문서 중복 생성 방지)
+  // Firestore `users/{uid}` 고유 문서에 덮어쓰기/병합
   await saveUserProfile(uid, userObj);
 
   if (typeof window !== "undefined") {
