@@ -30,20 +30,18 @@ export function loginWithNaver() {
     );
 
     if (!popup) {
-      // 팝업 차단 시 기본 사용자 반환
-      registerSocialUser({
-        uid: `naver_${Date.now().toString().slice(-6)}`,
-        displayName: "네이버 회원",
-        provider: "naver"
-      }).then(resolve);
+      reject(new Error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."));
       return;
     }
+
+    let isResolved = false;
 
     // 팝업으로부터 토큰 메시지 수신 대기
     const messageHandler = async (event) => {
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === "NAVER_TOKEN" && event.data?.accessToken) {
+        isResolved = true;
         window.removeEventListener("message", messageHandler);
         try {
           // 서버 API를 통해 실제 네이버 프로필 조회
@@ -63,33 +61,24 @@ export function loginWithNaver() {
           console.warn("Fetch Naver Profile Error:", e);
         }
 
-        // 폴백
-        const fallback = await registerSocialUser({
-          uid: `naver_${Date.now().toString().slice(-6)}`,
-          displayName: "네이버 회원",
-          provider: "naver"
-        });
-        resolve(fallback);
+        reject(new Error("네이버 프로필을 가져오는데 실패했습니다."));
       }
     };
 
     window.addEventListener("message", messageHandler);
 
-    // 팝업이 닫힐 때까지 대기
-    const checkPopup = setInterval(async () => {
+    // 팝업 닫힘 감지
+    const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
-        setTimeout(async () => {
+        setTimeout(() => {
           window.removeEventListener("message", messageHandler);
-          const fallback = await registerSocialUser({
-            uid: `naver_${Date.now().toString().slice(-6)}`,
-            displayName: "네이버 회원",
-            provider: "naver"
-          });
-          resolve(fallback);
-        }, 1000);
+          if (!isResolved) {
+            reject(new Error("로그인 창이 닫혔습니다."));
+          }
+        }, 800);
       }
-    }, 1000);
+    }, 800);
   });
 }
 
@@ -116,19 +105,18 @@ export function loginWithKakao() {
     );
 
     if (!popup) {
-      registerSocialUser({
-        uid: `kakao_${Date.now().toString().slice(-6)}`,
-        displayName: "카카오 회원",
-        provider: "kakao"
-      }).then(resolve);
+      reject(new Error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."));
       return;
     }
+
+    let isResolved = false;
 
     // 카카오 인가 코드 수신 대기
     const messageHandler = async (event) => {
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === "KAKAO_CODE" && event.data?.code) {
+        isResolved = true;
         window.removeEventListener("message", messageHandler);
         try {
           const res = await fetch("/api/auth/kakao-profile", {
@@ -150,36 +138,28 @@ export function loginWithKakao() {
           console.warn("Fetch Kakao Profile Error:", e);
         }
 
-        const fallback = await registerSocialUser({
-          uid: `kakao_${Date.now().toString().slice(-6)}`,
-          displayName: "카카오 회원",
-          provider: "kakao"
-        });
-        resolve(fallback);
+        reject(new Error("카카오 프로필을 가져오는데 실패했습니다."));
       }
     };
 
     window.addEventListener("message", messageHandler);
 
-    const checkPopup = setInterval(async () => {
+    const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
-        setTimeout(async () => {
+        setTimeout(() => {
           window.removeEventListener("message", messageHandler);
-          const fallback = await registerSocialUser({
-            uid: `kakao_${Date.now().toString().slice(-6)}`,
-            displayName: "카카오 회원",
-            provider: "kakao"
-          });
-          resolve(fallback);
-        }, 1000);
+          if (!isResolved) {
+            reject(new Error("카카오 로그인 창이 닫혔습니다."));
+          }
+        }, 800);
       }
-    }, 1000);
+    }, 800);
   });
 }
 
 /**
- * 소셜 로그인 사용자 정보를 Firestore users 컬렉션 및 LocalStorage에 직접 영구 저장
+ * 소셜 로그인 사용자 정보를 고유 고정 UID (예: kakao_12345, naver_67890)로 1:1 저장
  */
 export async function registerSocialUser({
   uid,
@@ -200,7 +180,7 @@ export async function registerSocialUser({
     updatedAt: new Date().toISOString()
   };
 
-  // Firestore `users/{uid}` 문서에 저장
+  // Firestore `users/{uid}` 고유 문서에 덮어쓰기/병합 (새 문서 중복 생성 방지)
   await saveUserProfile(uid, userObj);
 
   if (typeof window !== "undefined") {
